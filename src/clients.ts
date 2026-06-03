@@ -2,11 +2,7 @@ import * as path from 'path';
 import { Client as FtpClient } from 'basic-ftp';
 import SftpClient from 'ssh2-sftp-client';
 import * as vscode from 'vscode';
-import {
-  defaultPort,
-  getProfilePassword,
-  readPrivateKey,
-} from './profiles';
+import { defaultPort, getProfilePassword, readPrivateKey } from './profiles';
 import { QueuedRemoteClient } from './queuedClient';
 import { FtpSecureMode, FtpSftpProfile, RemoteClient, RemoteEntry } from './types';
 
@@ -126,11 +122,7 @@ class FtpRemoteClient implements RemoteClient {
   private readonly password: string | undefined;
   private readonly trustTlsCertificate: boolean;
 
-  constructor(
-    profile: FtpSftpProfile,
-    password: string | undefined,
-    trustTlsCertificate: boolean,
-  ) {
+  constructor(profile: FtpSftpProfile, password: string | undefined, trustTlsCertificate: boolean) {
     this.profile = profile;
     this.password = password;
     this.trustTlsCertificate = trustTlsCertificate;

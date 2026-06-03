@@ -25,10 +25,7 @@ export class ConnectionManager {
     return this.session !== undefined;
   }
 
-  async connect(
-    profile: FtpSftpProfile,
-    context: vscode.ExtensionContext,
-  ): Promise<ActiveSession> {
+  async connect(profile: FtpSftpProfile, context: vscode.ExtensionContext): Promise<ActiveSession> {
     if (this.session) {
       await this.disconnect();
     }

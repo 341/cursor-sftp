@@ -26,6 +26,11 @@ export function getRawProfilesFromSftpJson(): Record<string, unknown>[] {
   return entries;
 }
 
+/** Parse vscode-sftp style config JSON (no filesystem access). */
+export function parseSftpJsonConfig(raw: unknown, workspaceRoot = ''): Record<string, unknown>[] {
+  return flattenSftpJsonConfig(raw, workspaceRoot);
+}
+
 function flattenSftpJsonConfig(raw: unknown, workspaceRoot: string): Record<string, unknown>[] {
   if (Array.isArray(raw)) {
     return raw.flatMap((item) => flattenSftpJsonEntry(item, workspaceRoot));
@@ -66,7 +71,7 @@ function flattenSftpJsonEntry(raw: unknown, workspaceRoot: string): Record<strin
 function mapSftpJsonToProfile(
   raw: Record<string, unknown>,
   name: string,
-  workspaceRoot: string,
+  _workspaceRoot: string,
 ): Record<string, unknown> {
   const context = typeof raw.context === 'string' ? raw.context.replace(/\\/g, '/') : '';
   const localPath = context

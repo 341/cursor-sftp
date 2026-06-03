@@ -10,11 +10,7 @@ const DEFAULT_PROFILE_KEY = 'cursorFtpSftp.defaultProfile';
 const UPLOAD_ON_SAVE_KEY = 'cursorFtpSftp.uploadOnSave';
 const SECRET_PREFIX = 'cursorFtpSftp.password.';
 
-export const DEFAULT_IGNORE_PATTERNS = [
-  '**/.git/**',
-  '**/node_modules/**',
-  '**/.env',
-];
+export const DEFAULT_IGNORE_PATTERNS = ['**/.git/**', '**/node_modules/**', '**/.env'];
 
 export function serializeProfile(profile: FtpSftpProfile): Record<string, unknown> {
   const data: Record<string, unknown> = {

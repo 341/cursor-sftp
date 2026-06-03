@@ -55,8 +55,6 @@ export function openSettingsPanel(context: vscode.ExtensionContext): void {
   panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'resources', 'ftp-sftp.svg');
   panel.webview.html = getWebviewHtml(panel.webview, context.extensionUri);
 
-  const postState = () => void sendState(panel!.webview, context);
-
   panel.webview.onDidReceiveMessage(async (msg: PanelMessage) => {
     try {
       switch (msg.type) {
@@ -127,10 +125,7 @@ export function openSettingsPanel(context: vscode.ExtensionContext): void {
   });
 }
 
-async function sendState(
-  webview: vscode.Webview,
-  context: vscode.ExtensionContext,
-): Promise<void> {
+async function sendState(webview: vscode.Webview, context: vscode.ExtensionContext): Promise<void> {
   const profiles = getProfiles();
   const passwordSet: Record<string, boolean> = {};
   for (const p of profiles) {
@@ -146,11 +141,7 @@ async function sendState(
   webview.postMessage(payload);
 }
 
-function postToast(
-  webview: vscode.Webview,
-  level: 'info' | 'error',
-  message: string,
-): void {
+function postToast(webview: vscode.Webview, level: 'info' | 'error', message: string): void {
   const payload: PanelResponse = { type: 'toast', level, message };
   webview.postMessage(payload);
 }
@@ -174,9 +165,7 @@ async function handleSaveProfile(
   if (!name) {
     throw new Error('Profile name is required');
   }
-  const duplicate = profiles.find(
-    (p) => p.name === name && p.name !== (previousName ?? '').trim(),
-  );
+  const duplicate = profiles.find((p) => p.name === name && p.name !== (previousName ?? '').trim());
   if (duplicate) {
     throw new Error(`Profile "${name}" already exists`);
   }
@@ -202,10 +191,7 @@ async function handleSaveProfile(
   }
 }
 
-async function handleDeleteProfile(
-  context: vscode.ExtensionContext,
-  name: string,
-): Promise<void> {
+async function handleDeleteProfile(context: vscode.ExtensionContext, name: string): Promise<void> {
   const profiles = getProfiles().filter((p) => p.name !== name);
   await saveProfiles(profiles);
   await deleteProfilePassword(context, name);

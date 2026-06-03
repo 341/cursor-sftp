@@ -41,9 +41,10 @@ export async function promptTlsCertificateTrust(
 }
 
 export async function showConnectionFailure(err: unknown): Promise<void> {
-  const detail = err instanceof Error && 'detail' in err
-    ? String((err as { detail: string }).detail)
-    : formatConnectionError(err);
+  const detail =
+    err instanceof Error && 'detail' in err
+      ? String((err as { detail: string }).detail)
+      : formatConnectionError(err);
 
   logConnectionError('Connection failed', err);
 

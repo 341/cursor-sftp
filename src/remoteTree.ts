@@ -87,9 +87,7 @@ export class RemoteTreeItem extends vscode.TreeItem {
       isDir ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
       isDir ? 'remoteDirectory' : 'remoteFile',
     );
-    item.iconPath = isDir
-      ? new vscode.ThemeIcon('folder')
-      : new vscode.ThemeIcon('file');
+    item.iconPath = isDir ? new vscode.ThemeIcon('folder') : new vscode.ThemeIcon('file');
     item.description = profileName;
     if (!isDir && entry.size !== undefined) {
       item.description = `${formatBytes(entry.size)} · ${profileName}`;

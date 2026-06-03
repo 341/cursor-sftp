@@ -53,8 +53,6 @@ Patterns adopted from vscode-sftp: **serialized FTP commands** (one at a time), 
 | FTP/SFTP: Connect | Pick a profile and connect |
 | FTP/SFTP: Disconnect | Close the active session |
 | FTP/SFTP: Upload Current File | Upload the active editor file (must be under `localPath`) |
-| Upload File to Remote | Explorer context menu: upload selected file(s) to the mapped remote path |
-| Upload Folder to Remote | Explorer context menu: sync a folder to the mapped remote path |
 | FTP/SFTP: Download File | Download a remote path to disk |
 | FTP/SFTP: Upload Workspace Folder | Sync open workspace root to `remotePath` |
 | FTP/SFTP: Sync Workspace to Remote | Sync profile `localPath` to `remotePath` |
@@ -70,6 +68,18 @@ Connect, then use **Remote Files** in the **right sidebar** (secondary side bar)
 - Prefer SSH keys for SFTP; use secret storage for passwords.
 - Do not commit passwords or private keys to the repo.
 - `ignore` patterns skip sensitive paths during sync (defaults include `.git`, `node_modules`, `.env`).
+
+## Development
+
+```bash
+npm install
+npm run compile
+npm run lint          # ESLint
+npm run format:check  # Prettier
+npm run test          # unit tests
+npm run test:coverage # tests + coverage report (coverage/)
+npm run check         # format, lint, compile, coverage
+```
 
 ## Requirements
 

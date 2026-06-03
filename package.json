@@ -25,12 +25,7 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "workspaceContains:.vscode/sftp.json",
-    "onView:cursorFtpSftp.remoteExplorer",
-    "onView:cursorFtpSftp.remoteExplorerRight",
-    "onCommand:cursorFtpSftp.connect",
-    "onCommand:cursorFtpSftp.openSettings",
-    "onCommand:cursorFtpSftp.focusRemote"
+    "workspaceContains:.vscode/sftp.json"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -64,18 +59,6 @@
       {
         "command": "cursorFtpSftp.uploadFile",
         "title": "FTP/SFTP: Upload Current File"
-      },
-      {
-        "command": "cursorFtpSftp.uploadExplorerFile",
-        "title": "Upload File to Remote",
-        "category": "FTP/SFTP",
-        "icon": "$(cloud-upload)"
-      },
-      {
-        "command": "cursorFtpSftp.uploadExplorerFolder",
-        "title": "Upload Folder to Remote",
-        "category": "FTP/SFTP",
-        "icon": "$(cloud-upload)"
       },
       {
         "command": "cursorFtpSftp.downloadFile",
@@ -189,18 +172,6 @@
           "group": "7_modification@2"
         }
       ],
-      "explorer/context": [
-        {
-          "command": "cursorFtpSftp.uploadExplorerFile",
-          "when": "cursorFtpSftp.connected && explorerResourceIsFile",
-          "group": "cursorFtpSftp@1"
-        },
-        {
-          "command": "cursorFtpSftp.uploadExplorerFolder",
-          "when": "cursorFtpSftp.connected && explorerResourceIsFolder",
-          "group": "cursorFtpSftp@1"
-        }
-      ],
       "editor/context": [
         {
           "command": "cursorFtpSftp.uploadFile",
@@ -306,14 +277,29 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package"
+    "package": "vsce package",
+    "lint": "eslint src test",
+    "lint:fix": "eslint src test --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run format:check && npm run lint && npm run compile && npm run test:coverage"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@types/node": "^20.14.0",
     "@types/ssh2-sftp-client": "^9.0.6",
     "@types/vscode": "^1.85.0",
+    "@vitest/coverage-v8": "^3.0.5",
     "@vscode/vsce": "^3.2.0",
-    "typescript": "^5.5.0"
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.18.2",
+    "vitest": "^3.0.5"
   },
   "dependencies": {
     "basic-ftp": "^5.0.5",
