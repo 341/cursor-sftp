@@ -1,0 +1,224 @@
+{
+  "name": "cursor-ftp-sftp",
+  "displayName": "Cursor FTP/SFTP",
+  "description": "Connect, browse, upload, and download files over FTP and SFTP from Cursor.",
+  "version": "0.1.0",
+  "publisher": "sirius",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cursorFtpSftp.connect",
+        "title": "FTP/SFTP: Connect",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "cursorFtpSftp.disconnect",
+        "title": "FTP/SFTP: Disconnect",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "cursorFtpSftp.uploadFile",
+        "title": "FTP/SFTP: Upload Current File"
+      },
+      {
+        "command": "cursorFtpSftp.downloadFile",
+        "title": "FTP/SFTP: Download File"
+      },
+      {
+        "command": "cursorFtpSftp.uploadWorkspace",
+        "title": "FTP/SFTP: Upload Workspace Folder"
+      },
+      {
+        "command": "cursorFtpSftp.syncToRemote",
+        "title": "FTP/SFTP: Sync Workspace to Remote"
+      },
+      {
+        "command": "cursorFtpSftp.refreshRemote",
+        "title": "FTP/SFTP: Refresh Remote Explorer",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "cursorFtpSftp.setPassword",
+        "title": "FTP/SFTP: Set Profile Password (Secret Storage)"
+      },
+      {
+        "command": "cursorFtpSftp.openRemote",
+        "title": "FTP/SFTP: Open Remote File"
+      },
+      {
+        "command": "cursorFtpSftp.downloadRemote",
+        "title": "FTP/SFTP: Download Remote Item"
+      },
+      {
+        "command": "cursorFtpSftp.uploadToRemote",
+        "title": "FTP/SFTP: Upload to Remote Path"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "cursorFtpSftp.remoteExplorer",
+          "name": "FTP/SFTP Remote"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "cursorFtpSftp.connect",
+          "when": "view == cursorFtpSftp.remoteExplorer && !cursorFtpSftp.connected",
+          "group": "navigation@1"
+        },
+        {
+          "command": "cursorFtpSftp.disconnect",
+          "when": "view == cursorFtpSftp.remoteExplorer && cursorFtpSftp.connected",
+          "group": "navigation@1"
+        },
+        {
+          "command": "cursorFtpSftp.refreshRemote",
+          "when": "view == cursorFtpSftp.remoteExplorer && cursorFtpSftp.connected",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "cursorFtpSftp.openRemote",
+          "when": "view == cursorFtpSftp.remoteExplorer && viewItem == remoteFile",
+          "group": "inline"
+        },
+        {
+          "command": "cursorFtpSftp.downloadRemote",
+          "when": "view == cursorFtpSftp.remoteExplorer",
+          "group": "7_modification@1"
+        },
+        {
+          "command": "cursorFtpSftp.uploadToRemote",
+          "when": "view == cursorFtpSftp.remoteExplorer && viewItem == remoteDirectory",
+          "group": "7_modification@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "cursorFtpSftp.uploadFile",
+          "when": "cursorFtpSftp.connected && resourceScheme == file",
+          "group": "cursorFtpSftp@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "FTP/SFTP",
+      "properties": {
+        "cursorFtpSftp.profiles": {
+          "type": "array",
+          "default": [],
+          "description": "FTP/SFTP connection profiles.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "protocol",
+              "host",
+              "username"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Unique profile name shown in the connect picker."
+              },
+              "protocol": {
+                "type": "string",
+                "enum": [
+                  "ftp",
+                  "sftp"
+                ],
+                "default": "sftp"
+              },
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "number"
+              },
+              "username": {
+                "type": "string"
+              },
+              "remotePath": {
+                "type": "string",
+                "default": "/",
+                "description": "Default remote root for sync and explorer."
+              },
+              "localPath": {
+                "type": "string",
+                "default": "${workspaceFolder}",
+                "description": "Local folder for sync (supports ${workspaceFolder})."
+              },
+              "privateKeyPath": {
+                "type": "string",
+                "description": "SFTP only. Path to private key (supports ~)."
+              },
+              "passphrase": {
+                "type": "string",
+                "description": "SFTP only. Passphrase for encrypted private key."
+              },
+              "secure": {
+                "type": "boolean",
+                "default": true,
+                "description": "FTP only. Use FTPS (explicit TLS)."
+              },
+              "ignore": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [
+                  "**/.git/**",
+                  "**/node_modules/**",
+                  "**/.env"
+                ],
+                "description": "Glob patterns skipped during sync."
+              }
+            }
+          }
+        },
+        "cursorFtpSftp.defaultProfile": {
+          "type": "string",
+          "default": "",
+          "description": "Profile name used when a command does not prompt."
+        },
+        "cursorFtpSftp.uploadOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Upload the active file on save when connected."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/ssh2-sftp-client": "^9.0.6",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "basic-ftp": "^5.0.5",
+    "minimatch": "^9.0.5",
+    "ssh2-sftp-client": "^12.0.1"
+  }
+}
