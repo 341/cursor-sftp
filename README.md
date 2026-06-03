@@ -28,18 +28,18 @@ Add profiles in user or workspace settings (`settings.json`):
 
 ```json
 {
-  "cursorFtpSftp.defaultProfile": "wolt-dev",
+  "cursorFtpSftp.defaultProfile": "dev",
   "cursorFtpSftp.uploadOnSave": false,
   "cursorFtpSftp.profiles": [
     {
-      "name": "wolt-dev",
+      "name": "dev",
       "protocol": "sftp",
       "host": "sftp.example.com",
       "port": 22,
       "username": "venue-user",
       "remotePath": "/incoming",
-      "localPath": "${workspaceFolder}/wolt",
-      "privateKeyPath": "~/.ssh/wolt_dev",
+      "localPath": "${workspaceFolder}/",
+      "privateKeyPath": "~/.ssh/",
       "ignore": ["**/.git/**", "**/node_modules/**", "**/.env"]
     },
     {

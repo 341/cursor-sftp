@@ -3,7 +3,16 @@
   "displayName": "Cursor FTP/SFTP",
   "description": "Connect, browse, upload, and download files over FTP and SFTP from Cursor.",
   "version": "0.1.0",
-  "publisher": "sirius",
+  "publisher": "Eroll Maxhuni",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/341/cursor-sftp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/341/cursor-sftp/issues"
+  },
+  "homepage": "https://github.com/341/cursor-sftp#readme",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -15,6 +24,15 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "cursorFtpSftp",
+          "title": "FTP/SFTP",
+          "icon": "resources/ftp-sftp.svg"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "cursorFtpSftp.connect",
@@ -65,13 +83,21 @@
       }
     ],
     "views": {
-      "explorer": [
+      "cursorFtpSftp": [
         {
           "id": "cursorFtpSftp.remoteExplorer",
-          "name": "FTP/SFTP Remote"
+          "name": "Remote",
+          "icon": "resources/ftp-sftp.svg"
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "cursorFtpSftp.remoteExplorer",
+        "contents": "Connect to browse and transfer files over FTP or SFTP.\n[Connect](command:cursorFtpSftp.connect)\n\nConfigure profiles in settings (`cursorFtpSftp.profiles`).",
+        "when": "!cursorFtpSftp.connected"
+      }
+    ],
     "menus": {
       "view/title": [
         {
