@@ -24,40 +24,27 @@ VS Code–compatible extension for [Cursor](https://cursor.com). Connect to FTP 
 
 ## Configure profiles
 
-Add profiles in user or workspace settings (`settings.json`):
+Open the visual settings UI (no raw JSON required):
 
-```json
-{
-  "cursorFtpSftp.defaultProfile": "dev",
-  "cursorFtpSftp.uploadOnSave": false,
-  "cursorFtpSftp.profiles": [
-    {
-      "name": "dev",
-      "protocol": "sftp",
-      "host": "sftp.example.com",
-      "port": 22,
-      "username": "venue-user",
-      "remotePath": "/incoming",
-      "localPath": "${workspaceFolder}/",
-      "privateKeyPath": "~/.ssh/",
-      "ignore": ["**/.git/**", "**/node_modules/**", "**/.env"]
-    },
-    {
-      "name": "staging-ftp",
-      "protocol": "ftp",
-      "host": "ftp.example.com",
-      "port": 21,
-      "username": "deploy",
-      "remotePath": "/public_html",
-      "secure": true
-    }
-  ]
-}
-```
+1. Run **FTP/SFTP: Open Settings** from the Command Palette (or use the gear on the Remote panel).
+3. Create profiles, set default profile, toggle upload-on-save, and store passwords from the form.
 
-Store passwords with **FTP/SFTP: Set Profile Password (Secret Storage)** — they are kept in Cursor’s secret storage, not in `settings.json`.
+Passwords are kept in Cursor secret storage, not in `settings.json`. For SFTP, use a private key path (optional passphrase) or a stored password.
 
-For SFTP key-based auth, set `privateKeyPath` (and optional `passphrase`) instead of a password.
+Advanced users can still edit `cursorFtpSftp.profiles` in user settings if needed.
+
+### Compatible with [vscode-sftp](https://github.com/Natizyskunk/vscode-sftp)
+
+This extension reads the same **`.vscode/sftp.json`** format used by Natizyskunk’s SFTP extension (fork of liximomo). Existing project configs work without migration: profiles are merged with `cursorFtpSftp.profiles` (UI settings win on duplicate names).
+
+Supported from `sftp.json` today:
+
+- `protocol`, `host`, `port`, `username`, `password`, `remotePath`, `context` → local folder
+- Nested `profiles` object (named sub-profiles)
+- FTP: `secure` (`true` / `false` / `control` / `implicit`), `passive`, `secureOptions.rejectUnauthorized`
+- SFTP: `privateKeyPath`, `passphrase`, `connectTimeout`, `ignore`
+
+Patterns adopted from vscode-sftp: **serialized FTP commands** (one at a time), **FTPS certificate trust prompt**, and **workspace-based config**.
 
 ## Commands
 
@@ -66,13 +53,17 @@ For SFTP key-based auth, set `privateKeyPath` (and optional `passphrase`) instea
 | FTP/SFTP: Connect | Pick a profile and connect |
 | FTP/SFTP: Disconnect | Close the active session |
 | FTP/SFTP: Upload Current File | Upload the active editor file (must be under `localPath`) |
+| Upload File to Remote | Explorer context menu: upload selected file(s) to the mapped remote path |
+| Upload Folder to Remote | Explorer context menu: sync a folder to the mapped remote path |
 | FTP/SFTP: Download File | Download a remote path to disk |
 | FTP/SFTP: Upload Workspace Folder | Sync open workspace root to `remotePath` |
 | FTP/SFTP: Sync Workspace to Remote | Sync profile `localPath` to `remotePath` |
 | FTP/SFTP: Refresh Remote Explorer | Reload the remote tree |
 | FTP/SFTP: Set Profile Password | Store password in secret storage |
+| FTP/SFTP: Open Settings | Visual profile and preferences editor |
+| FTP/SFTP: Show Remote Panel | Open the remote file tree on the right sidebar |
 
-Use the **FTP/SFTP Remote** view in the Explorer after connecting. Right-click remote files to download or open; right-click folders to upload files into that directory.
+Connect, then use **Remote Files** in the **right sidebar** (secondary side bar) to browse the server. If the panel is hidden, run **FTP/SFTP: Show Remote Panel** or toggle the right sidebar. Right-click files to download or open; right-click folders to upload.
 
 ## Security notes
 
@@ -82,5 +73,5 @@ Use the **FTP/SFTP Remote** view in the Explorer after connecting. Right-click r
 
 ## Requirements
 
-- Cursor or VS Code 1.85+
+- Cursor or VS Code 1.93+ (right-sidebar remote tree)
 - Node.js 18+ (for building the extension only)

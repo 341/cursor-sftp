@@ -3,7 +3,11 @@
   "displayName": "Cursor FTP/SFTP",
   "description": "Connect, browse, upload, and download files over FTP and SFTP from Cursor.",
   "version": "0.1.0",
-  "publisher": "Eroll Maxhuni",
+  "publisher": "eroll-maxhuni",
+  "author": {
+    "name": "Eroll Maxhuni",
+    "email": "maxhuni.eroll@gmail.com"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,7 +24,13 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "workspaceContains:.vscode/sftp.json",
+    "onView:cursorFtpSftp.remoteExplorer",
+    "onView:cursorFtpSftp.remoteExplorerRight",
+    "onCommand:cursorFtpSftp.connect",
+    "onCommand:cursorFtpSftp.openSettings",
+    "onCommand:cursorFtpSftp.focusRemote"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -29,6 +39,13 @@
         {
           "id": "cursorFtpSftp",
           "title": "FTP/SFTP",
+          "icon": "resources/ftp-sftp.svg"
+        }
+      ],
+      "secondarySidebar": [
+        {
+          "id": "cursorFtpSftpRemote",
+          "title": "FTP/SFTP Remote",
           "icon": "resources/ftp-sftp.svg"
         }
       ]
@@ -47,6 +64,18 @@
       {
         "command": "cursorFtpSftp.uploadFile",
         "title": "FTP/SFTP: Upload Current File"
+      },
+      {
+        "command": "cursorFtpSftp.uploadExplorerFile",
+        "title": "Upload File to Remote",
+        "category": "FTP/SFTP",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "cursorFtpSftp.uploadExplorerFolder",
+        "title": "Upload Folder to Remote",
+        "category": "FTP/SFTP",
+        "icon": "$(cloud-upload)"
       },
       {
         "command": "cursorFtpSftp.downloadFile",
@@ -80,13 +109,30 @@
       {
         "command": "cursorFtpSftp.uploadToRemote",
         "title": "FTP/SFTP: Upload to Remote Path"
+      },
+      {
+        "command": "cursorFtpSftp.openSettings",
+        "title": "FTP/SFTP: Open Settings",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "cursorFtpSftp.focusRemote",
+        "title": "FTP/SFTP: Show Remote Panel",
+        "icon": "$(remote)"
       }
     ],
     "views": {
       "cursorFtpSftp": [
         {
           "id": "cursorFtpSftp.remoteExplorer",
-          "name": "Remote",
+          "name": "Remote Files",
+          "icon": "resources/ftp-sftp.svg"
+        }
+      ],
+      "cursorFtpSftpRemote": [
+        {
+          "id": "cursorFtpSftp.remoteExplorerRight",
+          "name": "Remote Files",
           "icon": "resources/ftp-sftp.svg"
         }
       ]
@@ -94,43 +140,65 @@
     "viewsWelcome": [
       {
         "view": "cursorFtpSftp.remoteExplorer",
-        "contents": "Connect to browse and transfer files over FTP or SFTP.\n[Connect](command:cursorFtpSftp.connect)\n\nConfigure profiles in settings (`cursorFtpSftp.profiles`).",
+        "contents": "Browse the server file tree here after connecting.\n[Connect](command:cursorFtpSftp.connect)\n[Open Settings](command:cursorFtpSftp.openSettings)",
+        "when": "!cursorFtpSftp.connected"
+      },
+      {
+        "view": "cursorFtpSftp.remoteExplorerRight",
+        "contents": "Browse the server file tree here after connecting.\n[Connect](command:cursorFtpSftp.connect)\n[Open Settings](command:cursorFtpSftp.openSettings)",
         "when": "!cursorFtpSftp.connected"
       }
     ],
     "menus": {
       "view/title": [
         {
+          "command": "cursorFtpSftp.openSettings",
+          "when": "view == cursorFtpSftp.remoteExplorer || view == cursorFtpSftp.remoteExplorerRight",
+          "group": "navigation@0"
+        },
+        {
           "command": "cursorFtpSftp.connect",
-          "when": "view == cursorFtpSftp.remoteExplorer && !cursorFtpSftp.connected",
+          "when": "(view == cursorFtpSftp.remoteExplorer || view == cursorFtpSftp.remoteExplorerRight) && !cursorFtpSftp.connected",
           "group": "navigation@1"
         },
         {
           "command": "cursorFtpSftp.disconnect",
-          "when": "view == cursorFtpSftp.remoteExplorer && cursorFtpSftp.connected",
+          "when": "(view == cursorFtpSftp.remoteExplorer || view == cursorFtpSftp.remoteExplorerRight) && cursorFtpSftp.connected",
           "group": "navigation@1"
         },
         {
           "command": "cursorFtpSftp.refreshRemote",
-          "when": "view == cursorFtpSftp.remoteExplorer && cursorFtpSftp.connected",
+          "when": "(view == cursorFtpSftp.remoteExplorer || view == cursorFtpSftp.remoteExplorerRight) && cursorFtpSftp.connected",
           "group": "navigation@2"
         }
       ],
       "view/item/context": [
         {
           "command": "cursorFtpSftp.openRemote",
-          "when": "view == cursorFtpSftp.remoteExplorer && viewItem == remoteFile",
+          "when": "(view == cursorFtpSftp.remoteExplorer || view == cursorFtpSftp.remoteExplorerRight) && viewItem == remoteFile",
           "group": "inline"
         },
         {
           "command": "cursorFtpSftp.downloadRemote",
-          "when": "view == cursorFtpSftp.remoteExplorer",
+          "when": "view == cursorFtpSftp.remoteExplorer || view == cursorFtpSftp.remoteExplorerRight",
           "group": "7_modification@1"
         },
         {
           "command": "cursorFtpSftp.uploadToRemote",
-          "when": "view == cursorFtpSftp.remoteExplorer && viewItem == remoteDirectory",
+          "when": "(view == cursorFtpSftp.remoteExplorer || view == cursorFtpSftp.remoteExplorerRight) && viewItem == remoteDirectory",
           "group": "7_modification@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "cursorFtpSftp.uploadExplorerFile",
+          "when": "cursorFtpSftp.connected && explorerResourceIsFile",
+          "group": "cursorFtpSftp@1"
+        },
+        {
+          "command": "cursorFtpSftp.uploadExplorerFolder",
+          "when": "cursorFtpSftp.connected && explorerResourceIsFolder",
+          "group": "cursorFtpSftp@1"
         }
       ],
       "editor/context": [
@@ -200,6 +268,11 @@
                 "type": "boolean",
                 "default": true,
                 "description": "FTP only. Use FTPS (explicit TLS)."
+              },
+              "trustServerCertificate": {
+                "type": "boolean",
+                "default": false,
+                "description": "FTP only. Skip TLS certificate hostname verification (use after Trust prompt or when connecting by IP)."
               },
               "ignore": {
                 "type": "array",

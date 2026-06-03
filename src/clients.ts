@@ -7,17 +7,35 @@ import {
   getProfilePassword,
   readPrivateKey,
 } from './profiles';
-import { FtpSftpProfile, RemoteClient, RemoteEntry } from './types';
+import { QueuedRemoteClient } from './queuedClient';
+import { FtpSecureMode, FtpSftpProfile, RemoteClient, RemoteEntry } from './types';
+
+function resolveFtpSecure(profile: FtpSftpProfile): boolean | 'implicit' {
+  const mode: FtpSecureMode = profile.secure ?? true;
+  if (mode === false) {
+    return false;
+  }
+  if (mode === 'implicit') {
+    return 'implicit';
+  }
+  return true;
+}
+
+export interface RemoteClientOptions {
+  trustTlsCertificate?: boolean;
+}
 
 export async function createRemoteClient(
   profile: FtpSftpProfile,
   context: vscode.ExtensionContext,
+  options: RemoteClientOptions = {},
 ): Promise<RemoteClient> {
-  const password = await getProfilePassword(context, profile.name);
-  if (profile.protocol === 'sftp') {
-    return new SftpRemoteClient(profile, password);
-  }
-  return new FtpRemoteClient(profile, password);
+  const password = await getProfilePassword(context, profile.name, profile);
+  const inner =
+    profile.protocol === 'sftp'
+      ? new SftpRemoteClient(profile, password)
+      : new FtpRemoteClient(profile, password, options.trustTlsCertificate === true);
+  return new QueuedRemoteClient(inner);
 }
 
 class SftpRemoteClient implements RemoteClient {
@@ -36,7 +54,7 @@ class SftpRemoteClient implements RemoteClient {
       host: this.profile.host,
       port,
       username: this.profile.username,
-      readyTimeout: 20000,
+      readyTimeout: this.profile.connectTimeout ?? 20000,
     };
 
     if (this.profile.privateKeyPath) {
@@ -106,10 +124,16 @@ class FtpRemoteClient implements RemoteClient {
   readonly profile: FtpSftpProfile;
   private readonly client = new FtpClient();
   private readonly password: string | undefined;
+  private readonly trustTlsCertificate: boolean;
 
-  constructor(profile: FtpSftpProfile, password: string | undefined) {
+  constructor(
+    profile: FtpSftpProfile,
+    password: string | undefined,
+    trustTlsCertificate: boolean,
+  ) {
     this.profile = profile;
     this.password = password;
+    this.trustTlsCertificate = trustTlsCertificate;
   }
 
   async connect(): Promise<void> {
@@ -119,12 +143,17 @@ class FtpRemoteClient implements RemoteClient {
         `Profile "${this.profile.name}" needs a password (command: Set Profile Password).`,
       );
     }
+    const secure = resolveFtpSecure(this.profile);
     await this.client.access({
       host: this.profile.host,
       port,
       user: this.profile.username,
       password: this.password,
-      secure: this.profile.secure !== false,
+      secure,
+      ...(this.profile.passive === true ? { passive: true } : {}),
+      ...(secure && this.trustTlsCertificate
+        ? { secureOptions: { rejectUnauthorized: false } }
+        : {}),
     });
   }
 

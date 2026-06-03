@@ -3,4 +3,6 @@ src/**
 tsconfig.json
 **/*.ts
 .gitignore
-node_modules/**
+node_modules/@types/**
+node_modules/@vscode/**
+node_modules/typescript/**

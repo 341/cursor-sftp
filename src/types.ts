@@ -1,5 +1,8 @@
 export type Protocol = 'ftp' | 'sftp';
 
+/** Matches [vscode-sftp](https://github.com/Natizyskunk/vscode-sftp) FTPS modes. */
+export type FtpSecureMode = boolean | 'control' | 'implicit';
+
 export interface FtpSftpProfile {
   name: string;
   protocol: Protocol;
@@ -10,7 +13,13 @@ export interface FtpSftpProfile {
   localPath?: string;
   privateKeyPath?: string;
   passphrase?: string;
-  secure?: boolean;
+  secure?: FtpSecureMode;
+  passive?: boolean;
+  connectTimeout?: number;
+  /** In-memory only when loaded from `.vscode/sftp.json` (not saved by the settings UI). */
+  password?: string;
+  /** When true, skip TLS hostname/certificate verification for FTPS (also set via Trust prompt). */
+  trustServerCertificate?: boolean;
   ignore?: string[];
 }
 

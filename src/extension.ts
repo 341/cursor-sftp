@@ -4,33 +4,59 @@ import * as vscode from 'vscode';
 import { ConnectionManager } from './connection';
 import { RemoteTreeItem, RemoteTreeProvider } from './remoteTree';
 import {
+  getProfiles,
   pickProfile,
   resolveLocalPath,
   setProfilePassword,
 } from './profiles';
+import { showConnectionFailure } from './certificatePrompt';
+import { ConnectionError } from './connectionErrors';
+import { focusRemotePanel } from './remotePanel';
+import { openSettingsPanel } from './settingsPanel';
 import { syncLocalToRemote } from './sync';
+
+const REMOTE_TREE_VIEWS = [
+  'cursorFtpSftp.remoteExplorer',
+  'cursorFtpSftp.remoteExplorerRight',
+] as const;
 
 let connections: ConnectionManager;
 let remoteTree: RemoteTreeProvider;
 
 export function activate(context: vscode.ExtensionContext): void {
+  try {
+    activateExtension(context);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[cursor-ftp-sftp] activate failed:', err);
+    void vscode.window.showErrorMessage(`FTP/SFTP extension failed to start: ${message}`);
+  }
+}
+
+function activateExtension(context: vscode.ExtensionContext): void {
   connections = new ConnectionManager();
   remoteTree = new RemoteTreeProvider(connections);
 
   void vscode.commands.executeCommand('setContext', 'cursorFtpSftp.connected', false);
 
-  const treeView = vscode.window.createTreeView('cursorFtpSftp.remoteExplorer', {
-    treeDataProvider: remoteTree,
-    showCollapseAll: true,
-  });
-  context.subscriptions.push(treeView);
-
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorFtpSftp.connect', () => connectCommand(context)),
+    vscode.commands.registerCommand('cursorFtpSftp.connect', (profileName?: string) =>
+      connectCommand(context, profileName),
+    ),
+    vscode.commands.registerCommand('cursorFtpSftp.openSettings', () =>
+      openSettingsPanel(context),
+    ),
+    vscode.commands.registerCommand('cursorFtpSftp.focusRemote', () => focusRemotePanel()),
     vscode.commands.registerCommand('cursorFtpSftp.disconnect', () => disconnectCommand()),
     vscode.commands.registerCommand('cursorFtpSftp.refreshRemote', () => remoteTree.refresh()),
     vscode.commands.registerCommand('cursorFtpSftp.setPassword', () => setPasswordCommand(context)),
     vscode.commands.registerCommand('cursorFtpSftp.uploadFile', () => uploadFileCommand()),
+    vscode.commands.registerCommand('cursorFtpSftp.uploadExplorerFile', (uri?: vscode.Uri | vscode.Uri[]) =>
+      uploadExplorerFileCommand(uri),
+    ),
+    vscode.commands.registerCommand('cursorFtpSftp.uploadExplorerFolder', (uri?: vscode.Uri | vscode.Uri[]) =>
+      uploadExplorerFolderCommand(uri),
+    ),
     vscode.commands.registerCommand('cursorFtpSftp.downloadFile', () => downloadFileCommand()),
     vscode.commands.registerCommand('cursorFtpSftp.uploadWorkspace', () => uploadWorkspaceCommand()),
     vscode.commands.registerCommand('cursorFtpSftp.syncToRemote', () => syncToRemoteCommand()),
@@ -44,6 +70,18 @@ export function activate(context: vscode.ExtensionContext): void {
       uploadToRemoteCommand(item),
     ),
   );
+
+  for (const viewId of REMOTE_TREE_VIEWS) {
+    try {
+      const treeView = vscode.window.createTreeView(viewId, {
+        treeDataProvider: remoteTree,
+        showCollapseAll: true,
+      });
+      context.subscriptions.push(treeView);
+    } catch (err) {
+      console.warn(`[cursor-ftp-sftp] Could not register tree view "${viewId}":`, err);
+    }
+  }
 
   const uploadOnSave = vscode.workspace.onDidSaveTextDocument(async (doc) => {
     if (!vscode.workspace.getConfiguration().get('cursorFtpSftp.uploadOnSave', false)) {
@@ -71,20 +109,32 @@ export async function deactivate(): Promise<void> {
   await connections?.disconnect();
 }
 
-async function connectCommand(context: vscode.ExtensionContext): Promise<void> {
-  const profile = await pickProfile();
-  if (!profile) {
-    return;
+async function connectCommand(
+  context: vscode.ExtensionContext,
+  profileName?: string,
+): Promise<void> {
+  let profile;
+  if (profileName) {
+    profile = getProfiles().find((p) => p.name === profileName);
+    if (!profile) {
+      void vscode.window.showErrorMessage(`Profile not found: ${profileName}`);
+      return;
+    }
+  } else {
+    profile = await pickProfile();
+    if (!profile) {
+      return;
+    }
   }
   try {
     await connections.connect(profile, context);
     remoteTree.refresh();
+    await focusRemotePanel();
     void vscode.window.showInformationMessage(
       `Connected to ${profile.name} (${profile.protocol.toUpperCase()})`,
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    void vscode.window.showErrorMessage(`Connection failed: ${message}`);
+    await showConnectionFailure(err instanceof ConnectionError ? err : new ConnectionError(err));
   }
 }
 
@@ -109,6 +159,110 @@ async function setPasswordCommand(context: vscode.ExtensionContext): Promise<voi
   }
   await setProfilePassword(context, profile.name, password);
   void vscode.window.showInformationMessage(`Password stored for profile "${profile.name}"`);
+}
+
+function explorerUris(resource?: vscode.Uri | vscode.Uri[]): vscode.Uri[] {
+  if (Array.isArray(resource)) {
+    return resource.filter((u) => u.scheme === 'file');
+  }
+  if (resource?.scheme === 'file') {
+    return [resource];
+  }
+  return [];
+}
+
+async function uploadExplorerFileCommand(resource?: vscode.Uri | vscode.Uri[]): Promise<void> {
+  const session = connections.active;
+  if (!session) {
+    void vscode.window.showWarningMessage('Connect to an FTP/SFTP profile first.');
+    return;
+  }
+
+  const uris = explorerUris(resource);
+  if (uris.length === 0) {
+    void vscode.window.showWarningMessage('Right-click a file in the Explorer to upload.');
+    return;
+  }
+
+  let uploaded = 0;
+  await runTransfer('Uploading to remote', async () => {
+    for (const uri of uris) {
+      const localPath = uri.fsPath;
+      if (!fs.statSync(localPath).isFile()) {
+        continue;
+      }
+      const remotePath = connections.mapLocalToRemote(localPath);
+      if (!remotePath) {
+        throw new Error(
+          `"${path.basename(localPath)}" is outside the profile local path. Check localPath in settings.`,
+        );
+      }
+      await session.client.ensureDir(path.posix.dirname(remotePath));
+      await session.client.upload(localPath, remotePath);
+      uploaded += 1;
+    }
+  });
+
+  remoteTree.refresh();
+  void vscode.window.showInformationMessage(
+    uploaded === 1 ? 'Uploaded 1 file to remote.' : `Uploaded ${uploaded} files to remote.`,
+  );
+}
+
+async function uploadExplorerFolderCommand(resource?: vscode.Uri | vscode.Uri[]): Promise<void> {
+  const session = connections.active;
+  if (!session) {
+    void vscode.window.showWarningMessage('Connect to an FTP/SFTP profile first.');
+    return;
+  }
+
+  const uris = explorerUris(resource);
+  if (uris.length === 0) {
+    void vscode.window.showWarningMessage('Right-click a folder in the Explorer to upload.');
+    return;
+  }
+
+  const uri = uris[0];
+  const localPath = uri.fsPath;
+  if (!fs.statSync(localPath).isDirectory()) {
+    void vscode.window.showWarningMessage('Select a folder, not a file.');
+    return;
+  }
+
+  const remotePath = connections.mapLocalToRemote(localPath);
+  if (!remotePath) {
+    void vscode.window.showErrorMessage(
+      'Folder is outside the profile local path. Adjust localPath in settings.',
+    );
+    return;
+  }
+
+  const folderName = path.basename(localPath);
+  const confirm = await vscode.window.showWarningMessage(
+    `Upload folder "${folderName}" to remote "${remotePath}"?`,
+    { modal: true },
+    'Upload',
+  );
+  if (confirm !== 'Upload') {
+    return;
+  }
+
+  await runTransfer('Uploading folder to remote', async () => {
+    const ignore = session.profile.ignore ?? ['**/.git/**', '**/node_modules/**'];
+    const result = await syncLocalToRemote(session.client, {
+      localRoot: localPath,
+      remoteRoot: remotePath,
+      ignore,
+      onProgress: (msg) => {
+        void vscode.window.setStatusBarMessage(msg, 2000);
+      },
+    });
+    void vscode.window.showInformationMessage(
+      `Upload complete: ${result.uploaded} files (${result.skipped} skipped)`,
+    );
+  });
+
+  remoteTree.refresh();
 }
 
 async function uploadFileCommand(): Promise<void> {

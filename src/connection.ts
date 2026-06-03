@@ -1,7 +1,10 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { promptTlsCertificateTrust } from './certificatePrompt';
+import { ConnectionError, isCertificateTrustError } from './connectionErrors';
 import { createRemoteClient } from './clients';
-import { resolveLocalPath } from './profiles';
+import { getProfiles, resolveLocalPath, saveProfiles } from './profiles';
+import { isTlsTrusted, setTlsTrusted } from './trustStore';
 import { FtpSftpProfile, RemoteClient } from './types';
 
 export interface ActiveSession {
@@ -30,37 +33,68 @@ export class ConnectionManager {
       await this.disconnect();
     }
 
-    const client = await createRemoteClient(profile, context);
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: `Connecting to ${profile.name} (${profile.protocol})`,
-        cancellable: false,
-      },
-      async () => {
-        await client.connect();
-      },
-    );
+    let trustTls = await isTlsTrusted(context, profile);
 
-    const remoteRoot = normalizeRemotePath(profile.remotePath ?? '/');
-    const localRoot = resolveLocalPath(profile.localPath);
+    while (true) {
+      const client = await createRemoteClient(profile, context, {
+        trustTlsCertificate: trustTls,
+      });
 
-    this.session = { profile, client, remoteRoot, localRoot };
-    await vscode.commands.executeCommand('setContext', 'cursorFtpSftp.connected', true);
-    return this.session;
+      try {
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: `Connecting to ${profile.name} (${profile.protocol})`,
+            cancellable: false,
+          },
+          async () => {
+            await client.connect();
+          },
+        );
+      } catch (err) {
+        await safeDisconnect(client);
+
+        if (
+          profile.protocol === 'ftp' &&
+          profile.secure !== false &&
+          !trustTls &&
+          isCertificateTrustError(err)
+        ) {
+          const accepted = await promptTlsCertificateTrust(profile, err);
+          if (accepted) {
+            await setTlsTrusted(context, profile);
+            await persistProfileTlsTrust(profile);
+            profile = { ...profile, trustServerCertificate: true };
+            trustTls = true;
+            continue;
+          }
+          throw new ConnectionError(err);
+        }
+
+        throw new ConnectionError(err);
+      }
+
+      const remoteRoot = normalizeRemotePath(profile.remotePath ?? '/');
+      const localRoot = resolveLocalPath(profile.localPath);
+
+      this.session = { profile, client, remoteRoot, localRoot };
+      await vscode.commands.executeCommand('setContext', 'cursorFtpSftp.connected', true);
+      return this.session;
+    }
   }
 
   async disconnect(): Promise<void> {
-    if (!this.session) {
+    const session = this.session;
+    if (!session) {
       return;
-    }
-    try {
-      await this.session.client.disconnect();
-    } catch {
-      // ignore close errors
     }
     this.session = undefined;
     await vscode.commands.executeCommand('setContext', 'cursorFtpSftp.connected', false);
+    try {
+      await session.client.disconnect();
+    } catch {
+      // ignore close errors
+    }
   }
 
   mapLocalToRemote(localFilePath: string): string | undefined {
@@ -74,6 +108,24 @@ export class ConnectionManager {
     const posixRel = rel.split(path.sep).join('/');
     return path.posix.join(this.session.remoteRoot, posixRel);
   }
+}
+
+async function safeDisconnect(client: RemoteClient): Promise<void> {
+  try {
+    await client.disconnect();
+  } catch {
+    // ignore cleanup errors
+  }
+}
+
+async function persistProfileTlsTrust(profile: FtpSftpProfile): Promise<void> {
+  const profiles = getProfiles();
+  const index = profiles.findIndex((p) => p.name === profile.name);
+  if (index < 0) {
+    return;
+  }
+  profiles[index] = { ...profiles[index], trustServerCertificate: true };
+  await saveProfiles(profiles);
 }
 
 function normalizeRemotePath(remotePath: string): string {

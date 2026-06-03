@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { isClientClosedError } from './clientErrors';
 import { ConnectionManager } from './connection';
 import { RemoteEntry } from './types';
 
@@ -6,9 +7,13 @@ export class RemoteTreeProvider implements vscode.TreeDataProvider<RemoteTreeIte
   private readonly _onDidChange = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChange.event;
 
+  /** Coalesce parallel getChildren calls for the same path (e.g. dual sidebar views). */
+  private readonly listInflight = new Map<string, Promise<RemoteTreeItem[]>>();
+
   constructor(private readonly connections: ConnectionManager) {}
 
   refresh(): void {
+    this.listInflight.clear();
     this._onDidChange.fire();
   }
 
@@ -23,10 +28,35 @@ export class RemoteTreeProvider implements vscode.TreeDataProvider<RemoteTreeIte
     }
 
     const remotePath = element?.remotePath ?? session.remoteRoot;
+    const inflight = this.listInflight.get(remotePath);
+    if (inflight) {
+      return inflight;
+    }
+
+    const promise = this.loadChildren(remotePath, session.profile.name);
+    this.listInflight.set(remotePath, promise);
+    try {
+      return await promise;
+    } finally {
+      if (this.listInflight.get(remotePath) === promise) {
+        this.listInflight.delete(remotePath);
+      }
+    }
+  }
+
+  private async loadChildren(remotePath: string, profileName: string): Promise<RemoteTreeItem[]> {
+    const session = this.connections.active;
+    if (!session) {
+      return [];
+    }
+
     try {
       const entries = await session.client.list(remotePath);
-      return entries.map((entry) => RemoteTreeItem.fromEntry(entry, session.profile.name));
+      return entries.map((entry) => RemoteTreeItem.fromEntry(entry, profileName));
     } catch (err) {
+      if (!this.connections.isConnected || isClientClosedError(err)) {
+        return [];
+      }
       const message = err instanceof Error ? err.message : String(err);
       void vscode.window.showErrorMessage(`Remote list failed: ${message}`);
       return [];
